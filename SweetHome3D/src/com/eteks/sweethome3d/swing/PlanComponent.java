@@ -2008,6 +2008,51 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    * that makes it fill <code>pageFormat</code> imageable size if this attribute is <code>null</code>.
    */
   public int print(Graphics g, PageFormat pageFormat, int pageIndex) {
+    if (pageIndex < 0) {
+      return NO_SUCH_PAGE;
+    }
+    if (this.home.getLevels().isEmpty()) {
+      return printLevel(g, pageFormat, pageIndex);
+    }
+    Level selectedLevel = this.home.getSelectedLevel();
+    try {
+      for (Level level : this.home.getLevels()) {
+        if (level.isViewable()) {
+          this.home.setSelectedLevel(level);
+          int levelPageCount = getLevelPrintPageCount(g, pageFormat);
+          if (pageIndex < Math.max(1, levelPageCount)) {
+            // Keep a page for an empty viewable level too.
+            return levelPageCount == 0 ? PAGE_EXISTS : printLevel(g, pageFormat, pageIndex);
+          }
+          pageIndex -= Math.max(1, levelPageCount);
+        }
+      }
+      return NO_SUCH_PAGE;
+    } finally {
+      this.home.setSelectedLevel(selectedLevel);
+    }
+  }
+
+  /**
+   * Returns the page count of the selected level, retaining explicit-scale tiling.
+   */
+  private int getLevelPrintPageCount(Graphics g, PageFormat pageFormat) {
+    Rectangle2D bounds = getItemsBounds(g, getPaintedItems());
+    if (bounds == null) {
+      return 0;
+    } else if (this.home.getPrint() == null || this.home.getPrint().getPlanScale() == null) {
+      return 1;
+    } else {
+      float printScale = this.home.getPrint().getPlanScale() * LengthUnit.centimeterToInch(72);
+      return (int)Math.ceil(bounds.getWidth() * printScale / pageFormat.getImageableWidth())
+          * (int)Math.ceil(bounds.getHeight() * printScale / pageFormat.getImageableHeight());
+    }
+  }
+
+  /**
+   * Prints a page of the currently selected level.
+   */
+  private int printLevel(Graphics g, PageFormat pageFormat, int pageIndex) {
     List<Selectable> printedItems = getPaintedItems(); 
     Rectangle2D printedItemBounds = getItemsBounds(g, printedItems);
     if (printedItemBounds != null) {
