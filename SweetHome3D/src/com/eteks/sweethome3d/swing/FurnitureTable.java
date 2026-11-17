@@ -26,6 +26,7 @@ import java.awt.Component;
 import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.AWTEventListener;
@@ -806,6 +807,29 @@ public class FurnitureTable extends JTable implements View, Printable {
           updateTableColumnsWidth(3);
         } else {
           updateTableColumnsWidth(0);
+        }
+        // Printer font metrics can be wider than the screen metrics used above.
+        for (int column = 0; column < printableColumnModel.getColumnCount(); column++) {
+          TableColumn printedColumn = printableColumnModel.getColumn(column);
+          int width = printedColumn.getWidth();
+          for (int row = 0; row < getRowCount(); row++) {
+            Component renderer = printedColumn.getCellRenderer().getTableCellRendererComponent(
+                this, getValueAt(row, column), false, false, row, column);
+            if (renderer instanceof JLabel) {
+              JLabel label = (JLabel)renderer;
+              if (label.getText() != null) {
+                Insets insets = label.getInsets();
+                int textWidth = g.getFontMetrics(label.getFont()).stringWidth(label.getText());
+                if (label.getIcon() != null) {
+                  textWidth += label.getIcon().getIconWidth() + label.getIconTextGap();
+                }
+                width = Math.max(width, textWidth + insets.left + insets.right
+                    + getIntercellSpacing().width + (OperatingSystem.isWindows() ? 3 : 0));
+              }
+            }
+          }
+          printedColumn.setPreferredWidth(width);
+          printedColumn.setWidth(width);
         }
         setGridColor(gridColor);
         Printable printable = getPrintable(PrintMode.FIT_WIDTH, null, null);
